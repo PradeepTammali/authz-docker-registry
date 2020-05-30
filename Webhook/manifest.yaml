@@ -1,35 +1,72 @@
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: docker-registry-serviceaccount-validation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: docker-registry-serviceaccount-validation
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: ${NAMESPACE}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: docker-registry-serviceaccount-validation
+rules:
+- apiGroups:
+  - "*"
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - patch
+- apiGroups:
+  - "*"
+  resources:
+  - secrets
+  verbs:
+  - get
+  - create
+---
 kind: Service
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   ports:
   - protocol: TCP
-    name: webhook
+    name: SERVICE_NAME
     port: 443
     targetPort: 8888
   selector:
-    app: webhook
+    app: SERVICE_NAME
 apiVersion: v1
 metadata:
-  name: webhook
+  name: SERVICE_NAME
   namespace: ${NAMESPACE}
   labels:
-    app: webhook
+    app: SERVICE_NAME
 ---
 kind: Deployment
 spec:
+  selector:
+    matchLabels:
+      app: SERVICE_NAME
   template:
     spec:
-      volumes:
       containers:
-        name: webhook
-        image: webhook:v1
+      - name: SERVICE_NAME
+        image: pradeeptammali/docker-registry-serviceaccount-validation:v1
         imagePullPolicy: IfNotPresent
         env:
-        - name: POD_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
+        - name: SOURCE_SECRET_NAME
+          value: regcred
+        - name: SOURCE_SECRET_NAMESPACE
+          value: sample
+        - name: TARGET_SERVICE_ACCOUNT
+          value: default
         ports:
         - containerPort: 8888
         readinessProbe:
@@ -54,38 +91,48 @@ spec:
             cpu: 300m
             memory: 50Mi
         volumeMounts:
-        - name: certs
-          mountPath: /etc/webhook/certs
+        - name: SERVER_CERT
+          mountPath: /etc/webhook/certs/cert.pem
+          subPath: cert.pem
+          readOnly: true
+        - name: SERVER_KEY
+          mountPath: /etc/webhook/certs/key.pem
+          subPath: key.pem
           readOnly: true
       volumes:
-        - name: certs
+        - name: SERVER_CERT
           secret:
-            secretName: certs
+            secretName: SERVER_CERT
+            defaultMode: 0400
+        - name: SERVER_KEY
+          secret:
+            secretName: SERVER_KEY
+            defaultMode: 0400
     metadata:
       labels:
-        app: webhook
+        app: SERVICE_NAME
   replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
       maxUnavailable: 0
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 metadata:
-  name: webhook
+  name: SERVICE_NAME
   namespace: ${NAMESPACE}
 ---
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: webhook
+  name: SERVICE_NAME
   labels:
-    app: webhook
+    app: SERVICE_NAME
 webhooks:
-  - name: docker.registry.validation
+  - name: docker.registry.serviceaccount.validation
     clientConfig:
       service:
-        name: webhook
+        name: SERVICE_NAME
         namespace: ${NAMESPACE}
         path : "/"
       caBundle: ${CA_BUNDLE}

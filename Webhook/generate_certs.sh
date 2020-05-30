@@ -20,7 +20,8 @@ The following flags are required.
 
        --service          Service name of webhook.
        --namespace        Namespace where webhook service and secret reside.
-       --secret           Secret name for CA certificate and server certificate/key pair.
+       --certSecret       Secret name for CA certificate.
+       --keySecret        Secret name for server certificate.
        --delete           Deletes the files and which were created.
 EOF
     exit 1
@@ -32,12 +33,16 @@ while [[ $# -gt 0 ]]; do
             service="$2"
             shift
             ;;
-        --secret)
-            secret="$2"
-            shift
-            ;;
         --namespace)
             namespace="$2"
+            shift
+            ;;
+        --certSecret)
+            certSecret="$2"
+            shift
+            ;;
+        --keySecret)
+            keySecret="$2"
             shift
             ;;
         --delete)
@@ -53,8 +58,9 @@ done
 
 
 [ -z ${service} ] && service=webhook
-[ -z ${secret} ] && secret=certs
-[ -z ${namespace} ] && namespace=default
+[ -z ${certSecret} ] && secret=cert
+[ -z ${keySecret} ] && secret=key
+[ -z ${namespace} ] && namespace=webhook
 
 if [ ! -x "$(command -v openssl)" ]; then
     echo "openssl not found"
@@ -67,9 +73,10 @@ masterIP=$(kubectl get nodes --selector=node-role.kubernetes.io/master= -o jsonp
 if [[ ${delete} == 'true' ]]; then
     echo "Deleting the files." >&2
     rm -rf csr.conf server-key.pem server.csr server-cert.pem
-    kubectl delete csr ${csrName} 2>/dev/null || true
-    kubectl delete secret ${secret} -n ${namespace}
+    kubectl delete secret ${certSecret} -n ${namespace}
+    kubectl delete secret ${keySecret} -n ${namespace}
     kubectl delete namespace ${namespace}
+    kubectl delete csr ${csrName} 2>/dev/null || true
     exit 0
 fi
 
@@ -163,14 +170,26 @@ echo ${serverCert} | openssl base64 -d -A -out server-cert.pem
 # Creating namespace
 kubectl create namespace ${namespace} || true
 
-# create the secret with CA cert and server cert/key
-kubectl create secret generic ${secret} \
-        --from-file=server.key=server-key.pem \
-        --from-file=server.crt=server-cert.pem \
+# create the secret with CA cert
+kubectl create secret generic ${certSecret} \
+        --from-file=cert.pem=server-cert.pem \
+        --dry-run -o yaml |
+    kubectl -n ${namespace} apply -f -
+
+# create the secret with key
+kubectl create secret generic ${keySecret} \
+        --from-file=key.pem=server-key.pem \
         --dry-run -o yaml |
     kubectl -n ${namespace} apply -f -
 
 # Modifying manifest.yaml, Replacing CABUNDLE and Namespace
 CA_BUNDLE=$(cat server-cert.pem | base64 | tr -d '\n')
+
+# OR you can use kubernetes extension apiserver authentication certificate
+# CA_BUNDLE=$(kubectl get configmap -n kube-system extension-apiserver-authentication -o=jsonpath='{.data.client-ca-file}' | base64 | tr -d '\n')
+
 sed -i "s/caBundle: .*$/caBundle: ${CA_BUNDLE}/g" ./manifest.yaml
 sed -i "s/namespace: .*$/namespace: ${namespace}/g" ./manifest.yaml
+sed -i -e "s*SERVICE_NAME*${service}*g" ./manifest.yaml
+sed -i -e "s*SERVER_CERT*${certSecret}*g" ./manifest.yaml
+sed -i -e "s*SERVER_KEY*${keySecret}*g" ./manifest.yaml

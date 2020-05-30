@@ -5,12 +5,14 @@
 
 ### Generate certs and modifying the manifest.yaml
 
-To run webhook on https, generate certs using script as follows
-```bash generate_certs.sh --namespace webhook --service webhook --secret certs```
+To run webhook on https, generate certs using script as follows.
+```bash generate_certs.sh --service webhook --namespace webhook --certSecret cert --keySecret key```
 
 To delete all the generated certs and resources do as following.
-```bash generate_certs.sh --delete true```
+```bash generate_certs.sh --service webhook --namespace webhook --certSecret cert --keySecret key --delete true```
 
+Deploy the webhook with manifest.
+```kubectl apply -f manifest.yaml```
 
 	Host    string `default:"0.0.0.0"`
 	Port    string `default:"8888"`
