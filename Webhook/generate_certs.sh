@@ -58,8 +58,8 @@ done
 
 
 [ -z ${service} ] && service=webhook
-[ -z ${certSecret} ] && secret=cert
-[ -z ${keySecret} ] && secret=key
+[ -z ${certSecret} ] && certSecret=cert
+[ -z ${keySecret} ] && keySecret=key
 [ -z ${namespace} ] && namespace=webhook
 
 if [ ! -x "$(command -v openssl)" ]; then
