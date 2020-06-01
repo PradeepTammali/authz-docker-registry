@@ -15,7 +15,7 @@ import (
 type Config struct {
 	SourceSecretName      string `required:"true" split_words:"true"`
 	SourceSecretNamespace string `required:"true" split_words:"true"`
-	TargetServiceAccount  string `default:"all" required:"true" split_words:"true"`
+	TargetServiceAccount  string `default:"all" split_words:"true"`
 }
 
 type ServiceAccountAdmission struct {
