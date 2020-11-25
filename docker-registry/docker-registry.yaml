@@ -1,0 +1,99 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: docker-registry
+  name: docker-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: docker-registry
+  template:
+    metadata:
+      labels:
+        app: docker-registry
+    spec:
+      containers:
+      - image: registry:2
+        imagePullPolicy: IfNotPresent
+        name: docker-registry
+        ports:
+        - containerPort: 443
+          name: http
+          protocol: TCP
+        env:
+        - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+          value: "/data/docker-registry"
+        - name: REGISTRY_HTTP_ADDR
+          value: "0.0.0.0:443"
+        - name: REGISTRY_HTTP_TLS_CERTIFICATE
+          value: "/opt/certs/server.crt"
+        - name: REGISTRY_HTTP_TLS_KEY
+          value: "/opt/certs/server.key"
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - name: certs
+          mountPath: /opt/certs/server.crt
+          subPath: server.crt
+        - name: certs
+          mountPath: /opt/certs/server.key
+          subPath: server.key
+      volumes:
+      - persistentVolumeClaim:
+          claimName: pvc-docker-registry
+        name: data
+      - name: certs
+        configMap:
+          name: registry-certs
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-docker-registry
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docker-registry
+spec:
+  ports:
+  - name: http
+    port: 443
+    protocol: TCP
+    targetPort: 443
+  selector:
+    app: docker-registry
+  type: LoadBalancer
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    layer: L4
+    protocol: tcp
+  name: docker-registry
+spec:
+  backend:
+    serviceName: docker-registry
+    servicePort: 443
+---
+apiVersion: v1
+data:
+  server.crt: |
+    -----BEGIN CERTIFICATE-----
+    -----END CERTIFICATE-----
+  server.key: |
+    -----BEGIN RSA PRIVATE KEY-----
+    -----END RSA PRIVATE KEY-----
+kind: ConfigMap
+metadata:
+  name: registry-certs
