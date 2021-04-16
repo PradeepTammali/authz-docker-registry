@@ -25,7 +25,7 @@
    ```
    ldapsearch -x -H ldap://localhost:389 -b ou=musicians,dc=example,dc=com -D "cn=admin,dc=example,dc=com" -w admin "(&(uid=bach)(objectClass=organizationalPerson))"
    ```
-											OR
+   OR
    ```
    ldapsearch -x -H ldap://localhost:389 -b dc=example,dc=com -D "cn=admin,dc=example,dc=com"   -w admin "(&(uid=bach)(objectClass=organizationalPerson))"
    ```
