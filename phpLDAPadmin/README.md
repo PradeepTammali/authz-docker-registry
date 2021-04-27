@@ -5,6 +5,7 @@ Follow the link to create self signed certs
 https://dzone.com/articles/creating-self-signed-certificate
 
 create a configmap with certs in the namespace.
+
 ```kubectl -n <namespace> create configmap console-certs --from-file=server.crt=server.crt --from-file=server.key=server.key```
 
 
@@ -12,8 +13,10 @@ create a configmap with certs in the namespace.
 
 1. Docker run command
    Docker:
+   
    ```docker run --name phpldapadmin-service -p 80:80 -p 8443:443 --link openldap:ldap-host --env PHPLDAPADMIN_LDAP_HOSTS=ldap-host --detach osixia/phpldapadmin:latest```
    Kubernets:
+   
    ```kubectl -n <namespace> apply -f phpLDAPadmin.yaml```
 2. phpLDAPadmin.yaml file contains all the resources required for the phpLDAPadmin deployment.
 3. phpLDAPadmin admin username is 'admin' and passowrd is 'admin'.
