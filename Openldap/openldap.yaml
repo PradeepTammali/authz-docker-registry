@@ -42,11 +42,11 @@ spec:
           value: "admin"
         resources:
           limits:
-            cpu: "1"
-            memory: 1Gi
+            cpu: "200m"
+            memory: 200Mi
           requests:
-            cpu: "0.5"
-            memory: 0.5Gi
+            cpu: "200m"
+            memory: 200Mi
 ---
 apiVersion: v1
 kind: Service
@@ -55,13 +55,13 @@ metadata:
 spec:
   ports:
   - name: https
-    port: 30636
+    port: 636
     protocol: TCP
     targetPort: 636
   - name: http
-    port: 30389
+    port: 389
     protocol: TCP
     targetPort: 389
   selector:
     app: openldap
-  type: LoadBalancer
+  type: ClusterIP

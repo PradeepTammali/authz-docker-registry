@@ -1,0 +1,69 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: phpldapadmin
+  name: phpldapadmin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: phpldapadmin
+  template:
+    metadata:
+      labels:
+        app: phpldapadmin
+    spec:
+      containers:
+      - image: osixia/phpldapadmin:0.7.1
+        imagePullPolicy: IfNotPresent
+        name: phpldapadmin
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        - containerPort: 443
+          name: https
+          protocol: TCP
+        env:
+        - name: PHPLDAPADMIN_LDAP_HOSTS
+          value: openldap
+#        - name: PHPLDAPADMIN_HTTPS
+#          value: "false"
+        - name: PHPLDAPADMIN_HTTPS_CRT_FILENAME
+          value: "server.crt"
+        - name: PHPLDAPADMIN_HTTPS_KEY_FILENAME
+          value: "server.key"
+        resources:
+          limits:
+            cpu: "200m"
+            memory: 200Mi
+          requests:
+            cpu: "200m"
+            memory: 200Mi
+        volumeMounts:
+        - name: certs
+          mountPath: /container/service/phpldapadmin/assets/apache2/certs/server.crt
+          subPath: server.crt
+        - name: certs
+          mountPath: /container/service/phpldapadmin/assets/apache2/certs/server.key
+          subPath: server.key
+      volumes:
+      - name: certs
+        configMap:
+          name: console-certs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: phpldapadmin
+spec:
+  ports:
+  - name: http
+    port: 30000
+    protocol: TCP
+    targetPort: 443
+  selector:
+    app: phpldapadmin
+  type: LoadBalancer

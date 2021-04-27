@@ -32,6 +32,13 @@ spec:
           value: "/opt/certs/server.crt"
         - name: REGISTRY_HTTP_TLS_KEY
           value: "/opt/certs/server.key"
+        resources:
+          limits:
+            cpu: "200m"
+            memory: 200Mi
+          requests:
+            cpu: "200m"
+            memory: 200Mi
         volumeMounts:
         - mountPath: /data
           name: data
