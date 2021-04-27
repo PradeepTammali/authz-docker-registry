@@ -15,7 +15,8 @@ create a configmap with certs in the namespace.
    Docker:
    
    ```docker run --name phpldapadmin-service -p 80:80 -p 8443:443 --link openldap:ldap-host --env PHPLDAPADMIN_LDAP_HOSTS=ldap-host --detach osixia/phpldapadmin:latest```
-   Kubernets:
+   
+   Kubernetes:
    
    ```kubectl -n <namespace> apply -f phpLDAPadmin.yaml```
 2. phpLDAPadmin.yaml file contains all the resources required for the phpLDAPadmin deployment.
