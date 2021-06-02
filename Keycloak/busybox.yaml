@@ -1,0 +1,45 @@
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: test
+spec:
+  containers:
+  - name: busybox
+    image: busybox
+    args:
+    - sleep
+    - "1000000"
+    imagePullPolicy: Always
+    resources:
+          requests:
+            cpu: '0.5'
+            memory: 500Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+    volumeMounts:
+#      - name: certs
+#        mountPath: "/etc/ssl/certs/keycloak.jks"
+#        subPath: keycloak.jks
+#      - name: certs
+#        mountPath: "/etc/ssl/private/apache-selfsigned.key"
+#        subPath: apache-selfsigned.key
+#      - name: certs
+#        mountPath: "/etc/nginx/certs/domain.crt"
+#        subPath: domain.crt
+#      - name: certs
+#        mountPath: "/etc/nginx/certs/domain.key"
+#        subPath: domain.key
+      - name: logs
+        mountPath: "/dynvolume"
+#  restartPolicy: "Never"
+  volumes:
+#    - name: certs
+#      configMap:
+#        name: test-jks
+#        defaultMode: 0755
+    - name: logs
+      persistentVolumeClaim:
+#        claimName: test-kc-test-test-kc-test
+        claimName: pvc-keycloak

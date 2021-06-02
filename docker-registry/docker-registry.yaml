@@ -63,6 +63,7 @@ metadata:
 spec:
   accessModes:
   - ReadWriteMany
+  storageClassName: test
   resources:
     requests:
       storage: 10Gi
@@ -80,18 +81,18 @@ spec:
   selector:
     app: docker-registry
   type: LoadBalancer
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  annotations:
-    layer: L4
-    protocol: tcp
-  name: docker-registry
-spec:
-  backend:
-    serviceName: docker-registry
-    servicePort: 443
+# ---
+# apiVersion: extensions/v1beta1
+# kind: Ingress
+# metadata:
+#   annotations:
+#     layer: L4
+#     protocol: tcp
+#   name: docker-registry
+# spec:
+#   backend:
+#     serviceName: docker-registry
+#     servicePort: 443
 ---
 apiVersion: v1
 data:

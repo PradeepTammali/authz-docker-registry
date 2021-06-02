@@ -1,0 +1,116 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: keycloak
+  name: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      containers:
+      - image: jboss/keycloak:12.0.0
+        imagePullPolicy: IfNotPresent
+        args: ["-Dkeycloak.profile.feature.docker=enabled","-b 0.0.0.0"]
+        name: keycloak
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /opt/jboss/keycloak/standalone/data
+          name: data
+        - mountPath: /opt/jboss/keycloak/standalone/configuration/certs/keycloak.jks
+          subPath: keycloak.jks
+          name: certs
+#        - mountPath: /opt/jboss/keycloak/standalone/configuration/keystores/server.crt
+#          subPath: server.crt
+#          name: certs
+#        - mountPath: /opt/jboss/keycloak/standalone/configuration/keystores/server.key
+#          subPath: server.key
+#          name: certs
+        env:
+        - name: KEYCLOAK_USER
+          value: admin
+        - name: KEYCLOAK_PASSWORD
+          value: password
+        - name: PROXY_ADDRESS_FORWARDING
+          value: "true"
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: "0.5"
+            memory: 0.5Gi
+      volumes:
+      - name: certs
+        configMap:
+          name: keycloak-certs
+      - persistentVolumeClaim:
+          claimName: pvc-keycloak
+        name: data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-keycloak
+spec:
+  accessModes:
+  - ReadWriteMany
+  storageClassName: ca99d7c8-a82e-11eb-a8aa-0e37bd1d541d
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+spec:
+  ports:
+  - name: http
+    port: 30004
+    protocol: TCP
+    targetPort: 8080
+  - name: https
+    port: 30005
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    app: keycloak
+  type: LoadBalancer
+# ---
+# apiVersion: extensions/v1beta1
+# kind: Ingress
+# metadata:
+#   annotations:
+#     layer: L4
+#     protocol: tcp
+#   name: keycloak-http
+# spec:
+#   backend:
+#     serviceName: keycloak
+#     servicePort: 30004
+# ---
+# apiVersion: extensions/v1beta1
+# kind: Ingress
+# metadata:
+#   annotations:
+#     layer: L4
+#     protocol: tcp
+#   name: keycloak-https
+# spec:
+#   backend:
+#     serviceName: keycloak
+#     servicePort: 30005

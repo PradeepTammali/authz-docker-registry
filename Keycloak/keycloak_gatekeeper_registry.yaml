@@ -1,0 +1,150 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: docker-registry
+  name: registry
+  namespace: etmmprd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: registry
+  template:
+    metadata:
+      labels:
+        app: registry
+    spec:
+      containers:
+      - name: registry
+        image: registry:2
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: REGISTRY_HTTP_ADDR
+          value: "0.0.0.0:443"
+        - name: REGISTRY_HTTP_TLS_CERTIFICATE
+          value: "/opt/certs/server.crt"
+        - name: REGISTRY_HTTP_TLS_KEY
+          value: "/opt/certs/server.key"
+        volumeMounts:
+        - mountPath: /opt/certs/server.crt
+          name: crt
+          subPath: vmx-edm-ee.dev.nsc.infra.ericsson.se.crt
+        - mountPath: /opt/certs/server.key
+          name: key
+          subPath: vmx-edm-ee.dev.nsc.infra.ericsson.se.key
+      - name: gatekeeper
+        #image: carlosedp/keycloak-gatekeeper:latest
+        image: keycloak/keycloak-gatekeeper:5.0.0
+        args:
+        - --config=/etc/keycloak-gatekeeper.conf
+        ports:
+        - containerPort: 3000
+          name: service
+        volumeMounts:
+        - name: gatekeeper-config
+          mountPath: /etc/keycloak-gatekeeper.conf
+          subPath: keycloak-gatekeeper.conf
+        - name: gatekeeper-files
+          mountPath: /html
+        - mountPath: /certs/tls.crt
+          name: crt
+          subPath: vmx-edm-ee.dev.nsc.infra.ericsson.se.crt
+        - mountPath: /certs/tls.key
+          name: key
+          subPath: vmx-edm-ee.dev.nsc.infra.ericsson.se.key
+      volumes:
+      - name : gatekeeper-config
+        configMap:
+          name: gatekeeper-config
+      - name : gatekeeper-files
+        configMap:
+          name: gatekeeper-files
+      - name: crt
+        secret:
+          secretName: keycloak.crt
+          defaultMode: 0755
+      - name: key
+        secret:
+          secretName: keycloak.key
+          defaultMode: 0755
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatekeeper-config
+  namespace: etmmprd
+  creationTimestamp: null
+data:
+  keycloak-gatekeeper.conf: |+
+    # is the url for retrieve the OpenID configuration - normally the <server>/auth/realms/<realm_name>
+    discovery-url: https://vmx-edm-ee.dev.nsc.infra.ericsson.se:30005/auth/realms/local
+    # skip tls verify
+    skip-openid-provider-tls-verify: true
+    # the client id for the 'client' application
+    client-id: gatekeeper
+    # the secret associated to the 'client' application
+    client-secret: f3a1dc44-58e0-4961-bbef-8f12b9b9be25
+    # the interface definition you wish the proxy to listen, all interfaces is specified as ':<port>', unix sockets as unix://<REL_PATH>|</ABS PATH>
+    listen: :3000
+    # whether to enable refresh tokens
+    enable-refresh-tokens: true
+    # the location of a certificate you wish the proxy to use for TLS support
+    tls-cert: /certs/tls.crt
+    # the location of a private key for TLS
+    tls-private-key: /certs/tls.key
+    # the redirection url, essentially the site url, note: /oauth/callback is added at the end
+    redirection-url: https://vmx-edm-ee.dev.nsc.infra.ericsson.se:30100
+    secure-cookie: false
+    # the encryption key used to encode the session state
+    encryption-key: vGcLt8ZUdPX5fXhtLZaPHZkGWHZrT6aa
+    # the upstream endpoint which we should proxy request
+    upstream-url: https://127.0.0.1:443
+    forbidden-page: /html/access-forbidden.html
+    resources:
+    - uri: /test/*
+      groups:
+      - tgroup
+    - uri: /pradeep/*
+      groups:
+      - pgroup
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatekeeper-files
+  namespace: etmmprd
+  creationTimestamp: null
+data:
+  access-forbidden.html: |+
+    Access Forbidden
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: registry
+  name: registry
+  namespace: etmmprd
+spec:
+  ports:
+  - name: http
+    port: 30100
+    protocol: TCP
+    targetPort: service
+  selector:
+    app: registry
+  type: LoadBalancer
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    layer: L4
+    protocol: tcp
+  name: registry
+spec:
+  backend:
+    serviceName: registry
+    servicePort: 30100
